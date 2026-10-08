@@ -38,6 +38,9 @@ button.alt{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 .item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
 .item:first-child{border-top:0}
 .hide{display:none}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:8px 14px;margin:10px 0}
+.k{color:var(--mute);font-weight:600}
+.lbl{color:var(--mute);font-weight:600;margin:14px 0 6px}
 .bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 @media print{header,nav,.noprint{display:none!important}body{background:#fff}section{border:0}}
 </style>
@@ -60,7 +63,8 @@ button.alt{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
  <section><h2>Item</h2>
   <div class="row">
    <div><label for="type">Item</label>
-    <select id="type"><option>Fire poi</option><option>Rope dart</option><option>Charcoal dart cage</option><option>Fire fans</option><option>Other</option></select></div>
+    <select id="type"><option>Fire poi</option><option>Rope dart</option><option>Charcoal dart cage</option><option>Fire fans</option><option>Fire staff</option><option>Fire sword</option><option>Fire dragon</option><option>Other</option></select>
+    <input id="other" class="hide" placeholder="What is it?" style="margin-top:8px"></div>
    <div><label for="qty">Quantity</label><input id="qty" type="number" min="1" value="1"></div>
   </div>
   <label for="desc">Description (brand, color, size)</label><input id="desc">
@@ -104,6 +108,7 @@ button.alt{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 (function(){
 var $=function(i){return document.getElementById(i)};
 var db,photos=[],drawn=false;
+$("type").onchange=function(){$("other").classList.toggle("hide",$("type").value!=="Other")};
 
 // storage (IndexedDB)
 function open(){return new Promise(function(res,rej){
@@ -150,6 +155,7 @@ function drawPhotos(){var p=$("photos");p.innerHTML="";
 // form
 var F=["name","phone","email","contact","type","qty","desc","issue","pickup","limit","notes"];
 function clearForm(){F.forEach(function(i){var e=$(i);e.value=e.tagName==="SELECT"?e.options[0].value:(i==="qty"?"1":"")});
+ $("other").value="";$("other").classList.add("hide");
  $("agree").checked=false;photos=[];drawPhotos();drawn=false;size()}
 $("reset").onclick=clearForm;
 function say(t){$("msg").textContent=t}
@@ -162,6 +168,7 @@ $("save").onclick=function(){
  if(!drawn){say("Customer signature is missing.");return}
  var o={id:Date.now(),sig:c.toDataURL("image/png"),photos:photos.slice(),status:"Dropped off"};
  F.forEach(function(i){o[i]=$(i).value});
+ if(o.type==="Other"&&$("other").value.trim())o.type=$("other").value.trim();
  put(o).then(function(){clearForm();say("");showTicket(o)}).catch(function(){say("Could not save. Storage may be full: export a backup and delete old entries.")});
 };
 
@@ -178,15 +185,18 @@ function renderLog(){all().then(function(rows){
   var id=+b.dataset.id;all().then(function(r){showTicket(r.filter(function(z){return z.id===id})[0])})}});
 })}
 
+function kv(k,v){return '<div class="k">'+k+'</div><div>'+(v?esc(v):'<span class="small">&ndash;</span>')+'</div>'}
 function showTicket(o){
  $("vNew").classList.add("hide");$("vLog").classList.add("hide");$("vTicket").classList.remove("hide");
  $("vTicket").innerHTML='<section><h2>Ticket '+ref(o.id)+'</h2><p class="small">'+fmt(o.id)+'</p>'+
- '<p><strong>'+esc(o.name)+'</strong><br>'+esc(o.phone)+' '+esc(o.email)+'<br>Contact by: '+esc(o.contact)+'</p>'+
- '<p><strong>'+esc(o.qty)+' &times; '+esc(o.type)+'</strong> '+esc(o.desc)+'<br>'+esc(o.issue)+'</p>'+
- '<p>Est. pickup: '+esc(o.pickup||"TBD")+' &middot; Spend limit: '+(o.limit?"$"+esc(o.limit):"call first")+'</p>'+
- (o.notes?'<p>Notes: '+esc(o.notes)+'</p>':'')+
+ '<div class="kv">'+
+ kv("Name",o.name)+kv("Phone",o.phone)+kv("Email",o.email)+kv("Contact by",o.contact)+
+ kv("Item",o.type)+kv("Quantity",o.qty)+kv("Description",o.desc)+kv("Issue",o.issue)+
+ kv("Est. pickup",o.pickup||"TBD")+kv("Spend limit",o.limit?"$"+o.limit:"Call first")+kv("Shop notes",o.notes)+
+ '</div>'+
+ ((o.photos||[]).length?'<div class="lbl">Photos at dropoff</div>':'')+
  '<div class="photos">'+(o.photos||[]).map(function(p){return '<img src="'+p+'">'}).join("")+'</div>'+
- '<p><img src="'+o.sig+'" style="max-width:320px;border-bottom:1px solid #000"></p>'+
+ '<div class="lbl">Customer signature</div><p><img src="'+o.sig+'" style="max-width:320px;border-bottom:1px solid #000"></p>'+
  '<label class="noprint">Status</label><select id="st" class="noprint">'+["Dropped off","In progress","Ready for pickup","Picked up"].map(function(s){return '<option'+(s===o.status?' selected':'')+'>'+s+'</option>'}).join("")+'</select>'+
  '<div class="bar noprint"><button class="btn" id="bk">Back</button><button class="btn alt" id="pr">Print / save PDF</button><button class="btn alt" id="dl">Delete</button></div></section>';
  $("st").onchange=function(){o.status=$("st").value;put(o)};
