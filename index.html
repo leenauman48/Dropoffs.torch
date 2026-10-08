@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dropoffs">
+<meta name="theme-color" content="#1d1a17">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Repair Dropoff</title>
+<style>
+:root{--bg:#efe9dd;--ink:#1d1a17;--card:#faf7f0;--line:#cfc6b4;--ember:#c8431a;--mute:#6d6558}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.4 "Avenir Next",Avenir,"Helvetica Neue",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--ink);color:var(--bg)}
+header h1{margin:0;font-size:22px;letter-spacing:.02em}
+nav button{background:none;border:2px solid var(--mute);color:var(--bg);border-radius:10px;padding:10px 18px;font-size:16px;margin-left:8px}
+nav button.on{background:var(--ember);border-color:var(--ember)}
+main{max-width:860px;margin:0 auto;padding:20px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
+h2{margin:0 0 12px;font-size:19px}
+label{display:block;font-weight:600;margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:90px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:600px){.row{grid-template-columns:1fr}}
+button.btn{font:inherit;font-weight:700;border:0;border-radius:12px;padding:14px 22px;background:var(--ember);color:#fff}
+button.alt{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.photos{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.photos div{position:relative}
+.photos img{width:110px;height:110px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.photos button{position:absolute;top:4px;right:4px;border:0;border-radius:50%;width:28px;height:28px;background:var(--ink);color:#fff}
+#sig{width:100%;height:180px;background:#fff;border:1.5px dashed var(--mute);border-radius:10px;touch-action:none;display:block}
+.terms{display:flex;gap:12px;align-items:flex-start;font-weight:400}
+.terms input{width:28px;height:28px;margin-top:2px;flex:none}
+.small{color:var(--mute);font-size:15px}
+.item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.hide{display:none}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+@media print{header,nav,.noprint{display:none!important}body{background:#fff}section{border:0}}
+</style>
+</head>
+<body>
+<header><h1>Repair Dropoff</h1><nav><button id="tNew" class="on">New</button><button id="tLog">Log</button></nav></header>
+<main>
+
+<div id="vNew">
+ <section><h2>Customer</h2>
+  <label for="name">Name</label><input id="name" autocomplete="off">
+  <div class="row">
+   <div><label for="phone">Phone</label><input id="phone" type="tel"></div>
+   <div><label for="email">Email</label><input id="email" type="email"></div>
+  </div>
+  <label for="contact">Best way to reach you</label>
+  <select id="contact"><option>Text</option><option>Call</option><option>Email</option></select>
+ </section>
+
+ <section><h2>Item</h2>
+  <div class="row">
+   <div><label for="type">Item</label>
+    <select id="type"><option>Fire poi</option><option>Rope dart</option><option>Charcoal dart cage</option><option>Fire fans</option><option>Other</option></select></div>
+   <div><label for="qty">Quantity</label><input id="qty" type="number" min="1" value="1"></div>
+  </div>
+  <label for="desc">Description (brand, color, size)</label><input id="desc">
+  <label for="issue">What needs fixing</label><textarea id="issue"></textarea>
+  <label>Photos of condition at dropoff</label>
+  <input id="photoIn" type="file" accept="image/*" capture="environment" multiple class="hide">
+  <button class="btn alt" id="addPhoto" type="button">Take photo</button>
+  <div class="photos" id="photos"></div>
+ </section>
+
+ <section><h2>Terms</h2>
+  <div class="row">
+   <div><label for="pickup">Estimated pickup</label><input id="pickup" type="date"></div>
+   <div><label for="limit">Go-ahead spend limit ($)</label><input id="limit" type="number" min="0" inputmode="decimal"></div>
+  </div>
+  <label for="notes">Shop notes</label><input id="notes">
+  <label class="terms"><input id="agree" type="checkbox"><span>I approve repairs up to the spend limit above. Items not picked up within 30 days may incur storage fees. Fire props are used at my own risk.</span></label>
+ </section>
+
+ <section><h2>Customer signature</h2>
+  <canvas id="sig"></canvas>
+  <div class="bar"><button class="btn alt" id="clearSig" type="button">Clear signature</button></div>
+ </section>
+
+ <div class="bar"><button class="btn" id="save" type="button">Save dropoff</button><button class="btn alt" id="reset" type="button">Clear form</button></div>
+ <p class="small" id="msg"></p>
+</div>
+
+<div id="vLog" class="hide">
+ <section><h2>Dropoffs</h2>
+  <div id="list"></div>
+  <div class="bar noprint"><button class="btn alt" id="csv" type="button">Export CSV</button><button class="btn alt" id="json" type="button">Export full backup</button></div>
+  <p class="small">Data lives only on this iPad. Export a backup whenever you have a connection.</p>
+ </section>
+</div>
+
+<div id="vTicket" class="hide"></div>
+</main>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var db,photos=[],drawn=false;
+
+// storage (IndexedDB)
+function open(){return new Promise(function(res,rej){
+ var r=indexedDB.open("dropoffs",1);
+ r.onupgradeneeded=function(){r.result.createObjectStore("t",{keyPath:"id"})};
+ r.onsuccess=function(){db=r.result;res()};r.onerror=function(){rej(r.error)};
+})}
+function all(){return new Promise(function(res){
+ var q=db.transaction("t").objectStore("t").getAll();q.onsuccess=function(){res(q.result.sort(function(a,b){return b.id-a.id}))};
+})}
+function put(o){return new Promise(function(res,rej){
+ var t=db.transaction("t","readwrite");t.objectStore("t").put(o);t.oncomplete=res;t.onerror=function(){rej(t.error)};
+})}
+function del(id){return new Promise(function(res){
+ var t=db.transaction("t","readwrite");t.objectStore("t").delete(id);t.oncomplete=res;
+})}
+
+// signature
+var c=$("sig"),x=c.getContext("2d"),down=false;
+function size(){var r=c.getBoundingClientRect(),d=window.devicePixelRatio||1,keep=drawn?c.toDataURL():null;
+ c.width=r.width*d;c.height=r.height*d;x.scale(d,d);x.lineWidth=2.5;x.lineCap="round";x.strokeStyle="#1d1a17";
+ if(keep){var im=new Image();im.onload=function(){x.drawImage(im,0,0,r.width,r.height)};im.src=keep}}
+function pt(e){var r=c.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+c.addEventListener("pointerdown",function(e){down=true;drawn=true;c.setPointerCapture(e.pointerId);var p=pt(e);x.beginPath();x.moveTo(p[0],p[1]);x.lineTo(p[0]+.1,p[1]);x.stroke()});
+c.addEventListener("pointermove",function(e){if(!down)return;var p=pt(e);x.lineTo(p[0],p[1]);x.stroke()});
+["pointerup","pointercancel"].forEach(function(n){c.addEventListener(n,function(){down=false})});
+$("clearSig").onclick=function(){drawn=false;size()};
+
+// photos (downscaled to keep storage small)
+$("addPhoto").onclick=function(){$("photoIn").click()};
+$("photoIn").onchange=function(e){
+ Array.prototype.forEach.call(e.target.files,function(f){
+  var u=URL.createObjectURL(f),im=new Image();
+  im.onload=function(){var s=Math.min(1,1000/Math.max(im.width,im.height)),cv=document.createElement("canvas");
+   cv.width=im.width*s;cv.height=im.height*s;cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
+   photos.push(cv.toDataURL("image/jpeg",.7));URL.revokeObjectURL(u);drawPhotos()};
+  im.src=u});
+ e.target.value="";
+};
+function drawPhotos(){var p=$("photos");p.innerHTML="";
+ photos.forEach(function(d,i){var w=document.createElement("div"),m=document.createElement("img"),b=document.createElement("button");
+  m.src=d;b.textContent="×";b.onclick=function(){photos.splice(i,1);drawPhotos()};w.appendChild(m);w.appendChild(b);p.appendChild(w)})}
+
+// form
+var F=["name","phone","email","contact","type","qty","desc","issue","pickup","limit","notes"];
+function clearForm(){F.forEach(function(i){var e=$(i);e.value=e.tagName==="SELECT"?e.options[0].value:(i==="qty"?"1":"")});
+ $("agree").checked=false;photos=[];drawPhotos();drawn=false;size()}
+$("reset").onclick=clearForm;
+function say(t){$("msg").textContent=t}
+
+$("save").onclick=function(){
+ if(!$("name").value.trim()){say("Add the customer's name.");$("name").focus();return}
+ if(!$("phone").value.trim()&&!$("email").value.trim()){say("Add a phone number or email.");$("phone").focus();return}
+ if(!$("issue").value.trim()){say("Describe what needs fixing.");$("issue").focus();return}
+ if(!$("agree").checked){say("Customer needs to accept the terms.");return}
+ if(!drawn){say("Customer signature is missing.");return}
+ var o={id:Date.now(),sig:c.toDataURL("image/png"),photos:photos.slice(),status:"Dropped off"};
+ F.forEach(function(i){o[i]=$(i).value});
+ put(o).then(function(){clearForm();say("");showTicket(o)}).catch(function(){say("Could not save. Storage may be full: export a backup and delete old entries.")});
+};
+
+// log + ticket
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(m){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]})}
+function fmt(id){return new Date(id).toLocaleString([], {dateStyle:"medium",timeStyle:"short"})}
+function ref(id){return "R"+String(id).slice(-6)}
+
+function renderLog(){all().then(function(rows){
+ var l=$("list");
+ if(!rows.length){l.innerHTML='<p class="small">No dropoffs yet. Save one from the New tab.</p>';return}
+ l.innerHTML=rows.map(function(o){return '<div class="item"><div><strong>'+esc(o.name)+'</strong> &middot; '+esc(o.qty)+' &times; '+esc(o.type)+'<br><span class="small">'+ref(o.id)+' &middot; '+fmt(o.id)+' &middot; '+esc(o.status)+'</span></div><button class="btn alt" data-id="'+o.id+'">Open</button></div>'}).join("");
+ Array.prototype.forEach.call(l.querySelectorAll("button"),function(b){b.onclick=function(){
+  var id=+b.dataset.id;all().then(function(r){showTicket(r.filter(function(z){return z.id===id})[0])})}});
+})}
+
+function showTicket(o){
+ $("vNew").classList.add("hide");$("vLog").classList.add("hide");$("vTicket").classList.remove("hide");
+ $("vTicket").innerHTML='<section><h2>Ticket '+ref(o.id)+'</h2><p class="small">'+fmt(o.id)+'</p>'+
+ '<p><strong>'+esc(o.name)+'</strong><br>'+esc(o.phone)+' '+esc(o.email)+'<br>Contact by: '+esc(o.contact)+'</p>'+
+ '<p><strong>'+esc(o.qty)+' &times; '+esc(o.type)+'</strong> '+esc(o.desc)+'<br>'+esc(o.issue)+'</p>'+
+ '<p>Est. pickup: '+esc(o.pickup||"TBD")+' &middot; Spend limit: '+(o.limit?"$"+esc(o.limit):"call first")+'</p>'+
+ (o.notes?'<p>Notes: '+esc(o.notes)+'</p>':'')+
+ '<div class="photos">'+(o.photos||[]).map(function(p){return '<img src="'+p+'">'}).join("")+'</div>'+
+ '<p><img src="'+o.sig+'" style="max-width:320px;border-bottom:1px solid #000"></p>'+
+ '<label class="noprint">Status</label><select id="st" class="noprint">'+["Dropped off","In progress","Ready for pickup","Picked up"].map(function(s){return '<option'+(s===o.status?' selected':'')+'>'+s+'</option>'}).join("")+'</select>'+
+ '<div class="bar noprint"><button class="btn" id="bk">Back</button><button class="btn alt" id="pr">Print / save PDF</button><button class="btn alt" id="dl">Delete</button></div></section>';
+ $("st").onchange=function(){o.status=$("st").value;put(o)};
+ $("bk").onclick=function(){go("log")};
+ $("pr").onclick=function(){window.print()};
+ $("dl").onclick=function(){if(confirm("Delete this dropoff for good?"))del(o.id).then(function(){go("log")})};
+}
+
+function go(w){
+ $("vTicket").classList.add("hide");
+ $("vNew").classList.toggle("hide",w!=="new");$("vLog").classList.toggle("hide",w!=="log");
+ $("tNew").classList.toggle("on",w==="new");$("tLog").classList.toggle("on",w==="log");
+ if(w==="log")renderLog();else size();
+}
+$("tNew").onclick=function(){go("new")};$("tLog").onclick=function(){go("log")};
+
+// export
+function save(name,type,text){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:type}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
+$("csv").onclick=function(){all().then(function(r){
+ var h=["ref","date","name","phone","email","contact","item","qty","description","issue","pickup","limit","notes","status"];
+ var q=function(v){return '"'+String(v==null?"":v).replace(/"/g,'""')+'"'};
+ var rows=r.map(function(o){return [ref(o.id),new Date(o.id).toISOString(),o.name,o.phone,o.email,o.contact,o.type,o.qty,o.desc,o.issue,o.pickup,o.limit,o.notes,o.status].map(q).join(",")});
+ save("dropoffs.csv","text/csv",[h.join(",")].concat(rows).join("\n"))})};
+$("json").onclick=function(){all().then(function(r){save("dropoffs-backup.json","application/json",JSON.stringify(r))})};
+
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(function(){})}
+open().then(function(){size();window.addEventListener("resize",size)}).catch(function(){say("Storage unavailable here. Open this file in Safari or a browser app that allows local storage.")});
+})();
+</script>
+</body>
+</html>
