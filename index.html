@@ -38,6 +38,7 @@ button.alt{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 .item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
 .item:first-child{border-top:0}
 .hide{display:none}
+.pg{break-after:page;page-break-after:always}
 .kv{display:grid;grid-template-columns:140px 1fr;gap:8px 14px;margin:10px 0}
 .k{color:var(--mute);font-weight:600}
 .lbl{color:var(--mute);font-weight:600;margin:14px 0 6px}
@@ -96,7 +97,7 @@ button.alt{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 <div id="vLog" class="hide">
  <section><h2>Dropoffs</h2>
   <div id="list"></div>
-  <div class="bar noprint"><button class="btn alt" id="csv" type="button">Export CSV</button><button class="btn alt" id="json" type="button">Export full backup</button></div>
+  <div class="bar noprint"><button class="btn alt" id="csv" type="button">Export CSV</button><button class="btn alt" id="json" type="button">Export full backup</button><button class="btn alt" id="pdfAll" type="button">Save all as PDF</button></div>
   <p class="small">Data lives only on this iPad. Export a backup whenever you have a connection.</p>
  </section>
 </div>
@@ -107,7 +108,7 @@ button.alt{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 <script>
 (function(){
 var $=function(i){return document.getElementById(i)};
-var db,photos=[],drawn=false;
+var db,photos=[],drawn=false,editingId=null,editingStatus="Dropped off";
 $("type").onchange=function(){$("other").classList.toggle("hide",$("type").value!=="Other")};
 
 // storage (IndexedDB)
@@ -155,6 +156,7 @@ function drawPhotos(){var p=$("photos");p.innerHTML="";
 // form
 var F=["name","phone","email","contact","type","qty","desc","issue","pickup","limit","notes"];
 function clearForm(){F.forEach(function(i){var e=$(i);e.value=e.tagName==="SELECT"?e.options[0].value:(i==="qty"?"1":"")});
+ editingId=null;$("save").textContent="Save dropoff";
  $("other").value="";$("other").classList.add("hide");
  $("agree").checked=false;photos=[];drawPhotos();drawn=false;size()}
 $("reset").onclick=clearForm;
@@ -166,7 +168,7 @@ $("save").onclick=function(){
  if(!$("issue").value.trim()){say("Describe what needs fixing.");$("issue").focus();return}
  if(!$("agree").checked){say("Customer needs to accept the terms.");return}
  if(!drawn){say("Customer signature is missing.");return}
- var o={id:Date.now(),sig:c.toDataURL("image/png"),photos:photos.slice(),status:"Dropped off"};
+ var o={id:editingId||Date.now(),sig:c.toDataURL("image/png"),photos:photos.slice(),status:editingId?editingStatus:"Dropped off"};
  F.forEach(function(i){o[i]=$(i).value});
  if(o.type==="Other"&&$("other").value.trim())o.type=$("other").value.trim();
  put(o).then(function(){clearForm();say("");showTicket(o)}).catch(function(){say("Could not save. Storage may be full: export a backup and delete old entries.")});
@@ -186,21 +188,34 @@ function renderLog(){all().then(function(rows){
 })}
 
 function kv(k,v){return '<div class="k">'+k+'</div><div>'+(v?esc(v):'<span class="small">&ndash;</span>')+'</div>'}
-function showTicket(o){
- $("vNew").classList.add("hide");$("vLog").classList.add("hide");$("vTicket").classList.remove("hide");
- $("vTicket").innerHTML='<section><h2>Ticket '+ref(o.id)+'</h2><p class="small">'+fmt(o.id)+'</p>'+
+function ticketBody(o,withStatus){return '<h2>Ticket '+ref(o.id)+'</h2><p class="small">'+fmt(o.id)+'</p>'+
  '<div class="kv">'+
  kv("Name",o.name)+kv("Phone",o.phone)+kv("Email",o.email)+kv("Contact by",o.contact)+
  kv("Item",o.type)+kv("Quantity",o.qty)+kv("Description",o.desc)+kv("Issue",o.issue)+
- kv("Est. pickup",o.pickup||"TBD")+kv("Spend limit",o.limit?"$"+o.limit:"Call first")+kv("Shop notes",o.notes)+
+ kv("Est. pickup",o.pickup||"TBD")+kv("Spend limit",o.limit?"$"+o.limit:"Call first")+kv("Shop notes",o.notes)+(withStatus?kv("Status",o.status):"")+
  '</div>'+
  ((o.photos||[]).length?'<div class="lbl">Photos at dropoff</div>':'')+
  '<div class="photos">'+(o.photos||[]).map(function(p){return '<img src="'+p+'">'}).join("")+'</div>'+
- '<div class="lbl">Customer signature</div><p><img src="'+o.sig+'" style="max-width:320px;border-bottom:1px solid #000"></p>'+
+ '<div class="lbl">Customer signature</div><p><img src="'+o.sig+'" style="max-width:320px;border-bottom:1px solid #000"></p>';}
+function editTicket(o){
+ go("new");clearForm();
+ F.forEach(function(i){$(i).value=o[i]==null?"":o[i]});
+ var sel=$("type"),ok=Array.prototype.some.call(sel.options,function(op){return op.value===o.type});
+ if(!ok){sel.value="Other";$("other").value=o.type;$("other").classList.remove("hide")}
+ else if(o.type==="Other"){$("other").classList.remove("hide")}
+ $("agree").checked=true;photos=(o.photos||[]).slice();drawPhotos();
+ var im=new Image();im.onload=function(){var r=c.getBoundingClientRect();x.drawImage(im,0,0,r.width,r.height);drawn=true};im.src=o.sig;
+ editingId=o.id;editingStatus=o.status;$("save").textContent="Save changes";
+ say("Editing "+ref(o.id)+". Tap Clear form to cancel.");
+}
+function showTicket(o){
+ $("vNew").classList.add("hide");$("vLog").classList.add("hide");$("vTicket").classList.remove("hide");
+ $("vTicket").innerHTML='<section>'+ticketBody(o)+
  '<label class="noprint">Status</label><select id="st" class="noprint">'+["Dropped off","In progress","Ready for pickup","Picked up"].map(function(s){return '<option'+(s===o.status?' selected':'')+'>'+s+'</option>'}).join("")+'</select>'+
- '<div class="bar noprint"><button class="btn" id="bk">Back</button><button class="btn alt" id="pr">Print / save PDF</button><button class="btn alt" id="dl">Delete</button></div></section>';
+ '<div class="bar noprint"><button class="btn" id="bk">Back</button><button class="btn alt" id="ed">Edit</button><button class="btn alt" id="pr">Print / save PDF</button><button class="btn alt" id="dl">Delete</button></div></section>';
  $("st").onchange=function(){o.status=$("st").value;put(o)};
  $("bk").onclick=function(){go("log")};
+ $("ed").onclick=function(){editTicket(o)};
  $("pr").onclick=function(){window.print()};
  $("dl").onclick=function(){if(confirm("Delete this dropoff for good?"))del(o.id).then(function(){go("log")})};
 }
@@ -215,6 +230,12 @@ $("tNew").onclick=function(){go("new")};$("tLog").onclick=function(){go("log")};
 
 // export
 function save(name,type,text){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:type}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
+$("pdfAll").onclick=function(){all().then(function(r){
+ if(!r.length){alert("No dropoffs to save yet.");return}
+ $("vLog").classList.add("hide");$("vTicket").classList.remove("hide");
+ $("vTicket").innerHTML='<div class="bar noprint"><button class="btn" id="bk2">Back</button><button class="btn alt" id="pr2">Print / save PDF</button></div><p class="small noprint">'+r.length+' tickets, one per page. Tap Print, then Share and Save to Files.</p>'+r.map(function(o){return '<section class="pg">'+ticketBody(o,true)+'</section>'}).join("");
+ $("bk2").onclick=function(){go("log")};$("pr2").onclick=function(){window.print()};
+})};
 $("csv").onclick=function(){all().then(function(r){
  var h=["ref","date","name","phone","email","contact","item","qty","description","issue","pickup","limit","notes","status"];
  var q=function(v){return '"'+String(v==null?"":v).replace(/"/g,'""')+'"'};
